@@ -2,7 +2,8 @@ use bitcoin
 use .FungibleAsset
 
 @runs AluVM
-@allows assignmentSeparation
+@derive assignmentSeparation
+@derive blankTransitions
 final contract RGB20 implements FungibleAsset {
     field ticker: str
     field name: str
