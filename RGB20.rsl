@@ -1,0 +1,111 @@
+use bitcoin
+use .FungibleAsset
+
+@runs RGBALU
+@allows assignmentSeparation
+final contract RGB20 implements FungibleAsset {
+    field ticker: str
+    field name: str
+    field contractText: str?
+    field issued: value
+    field precision: uint8
+    field created: timestamp
+
+    assigns inflationRight: value*
+    assigns assetsOwnership: value+ {
+        validate() {
+            diff = parent[..].sum - self[..].sum
+            if diff != 0 {
+                error(failures.FungibleAsset.Inflation(diff))
+            }
+        }
+    }
+    assigns renominationRight: decl?
+    assigns burnEpochOpening: decl?
+
+    transition AssetTransfer fulfills assetsOwnership+ {
+        assigns assetsOwnership: value+
+    }
+
+    transition SecondaryIssue fulfills inflationRight+ {
+        field issued: value
+
+        assigns inflationRight: value*
+        assigns assetsOwnership: value+
+        assigns burnEpochOpening: decl?
+
+        validate() {
+            diff = parent[..].inflationRight[..].sum
+                 - self.issued + self.inflationRight[..].sum
+                 - self.assetsOwnership[..].sum
+            if diff != 0 {
+                error(failures.FungibleAsset.Inflation(diff))
+            }
+        }
+    }
+
+    transition OpenEpoch fulfills burnEpochOpening {
+        assigns burnEpochOpening: decl?
+        assigns burningRight: decl?
+    }
+
+    transition Burn fulfills burningRight {
+        field burnedSupply: value
+        field utxos: bytes+
+
+        data proofs: lnpbp.strict.rgb.ProofOfBurn+
+
+        assigns burningRight: decl?
+
+        validate() {
+            for (index, utxo) in self.utxos.enumerated() {
+                utxo = utxo as bitcoin.utxo_script
+                self.checks.utxos += utxo
+                self.checks.proofOfBurn += utxo
+                if !utxo.doesExists() {
+                    error(failures.UTXO.Unknown(utxo))
+                }
+                if utxo.isSpent() {
+                    warn(failures.UTXO.NotProofOfBurn(utxo))
+                }
+                if !utxo.isUnspendable() {
+                    warn(failures.UTXO.NotProofOfBurn(utxo))
+                }
+                with proof = self.proofs[index] {
+                    if !proof.validate() {
+                        warn(failures.RGB.NotProofOfBurn(proof.id))
+                    }
+                } otherwise {
+                    warn(failures.data.NotPresent(utxo.id))
+                }
+            }
+        }
+    }
+
+    transition Replace fulfills burningRight extends Burn {
+        field issued: value
+        assigns assetsOwnership: value+
+
+        validate() {
+            super.validate()
+
+            diff = super.proofs[..?].sum() - self.assetsOwnership[..].sum()
+            if diff != 0 {
+                error(failures.FungibleAsset.Inflation(diff))
+            }
+        }
+    }
+
+    transition Renomination fulfills renominationRight {
+        field ticker: str
+        field name: str
+        field contract: str?
+        field precision: uint8
+
+        assigns renominationRight: decl?
+    }
+}
+
+contract RGB20NoReplace restricts RGB20 {
+    no transition Replace
+}
