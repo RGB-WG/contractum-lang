@@ -24,6 +24,16 @@ final contract RGB20 implements FungibleAsset {
     assigns renominationRight: decl?
     assigns burnEpochOpening: decl?
 
+    fn validateSupply() {
+        if self.issuedSupply != self.assetsOwnership[..].sum() {
+            error(failures.FungibleAsset.IncorrectIssue())
+        }
+    }
+
+    validate() {
+        validateSupply()
+    }
+
     transition AssetTransfer fulfills assetsOwnership+ {
         assigns assetsOwnership: value+
     }
@@ -36,8 +46,9 @@ final contract RGB20 implements FungibleAsset {
         assigns burnEpochOpening: decl?
 
         validate() {
+            validateSupply()
+
             diff = parent[..].inflationRight[..].sum()
-                 - self.issuedSupply
                  - self.inflationRight[..].sum()
                  - self.assetsOwnership[..].sum()
             if diff != 0 {
