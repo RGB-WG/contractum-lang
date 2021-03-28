@@ -15,7 +15,7 @@ final contract RGB20 implements FungibleAsset {
     assigns inflationRight: value*
     assigns assetsOwnership: value+ {
         validate() {
-            diff = parent[..].sum - self[..].sum
+            diff = parent[..].sum() - self[..].sum()
             if diff != 0 {
                 error(failures.FungibleAsset.Inflation(diff))
             }
@@ -36,10 +36,10 @@ final contract RGB20 implements FungibleAsset {
         assigns burnEpochOpening: decl?
 
         validate() {
-            diff = parent[..].inflationRight[..].sum
-                 - self.issued
-                 - self.inflationRight[..].sum
-                 - self.assetsOwnership[..].sum
+            diff = parent[..].inflationRight[..].sum()
+                 - self.issuedSupply
+                 - self.inflationRight[..].sum()
+                 - self.assetsOwnership[..].sum()
             if diff != 0 {
                 error(failures.FungibleAsset.Inflation(diff))
             }
