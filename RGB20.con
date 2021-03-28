@@ -7,7 +7,7 @@ final contract RGB20 implements FungibleAsset {
     field ticker: str
     field name: str
     field contractText: str?
-    field issued: value
+    field issuedSupply: value
     field precision: uint8
     field created: timestamp
 
@@ -28,7 +28,7 @@ final contract RGB20 implements FungibleAsset {
     }
 
     transition SecondaryIssue fulfills inflationRight+ {
-        field issued: value
+        field issuedSupply: value
 
         assigns inflationRight: value*
         assigns assetsOwnership: value+
@@ -36,7 +36,8 @@ final contract RGB20 implements FungibleAsset {
 
         validate() {
             diff = parent[..].inflationRight[..].sum
-                 - self.issued + self.inflationRight[..].sum
+                 - self.issued
+                 - self.inflationRight[..].sum
                  - self.assetsOwnership[..].sum
             if diff != 0 {
                 error(failures.FungibleAsset.Inflation(diff))
@@ -83,7 +84,7 @@ final contract RGB20 implements FungibleAsset {
     }
 
     transition Replace fulfills burningRight extends Burn {
-        field issued: value
+        field issuedSupply: value
         assigns assetsOwnership: value+
 
         validate() {

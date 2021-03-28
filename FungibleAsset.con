@@ -3,9 +3,9 @@ interface FungibleAsset {
     required field ticker: str
     required field name: str
     required field contractText: str?
-    required field issued: value
     required field precision: uint8
     required field created: timestamp
+    required field issuedSupply: value
 
     maybe inflationRight: value~
     required assetsOwnership: value~
