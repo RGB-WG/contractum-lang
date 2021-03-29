@@ -1,0 +1,52 @@
+(* Contractum language grammar *)
+
+module = { import }
+       , { declaration }
+       ;
+
+declaration = contract
+            | interface
+            | package
+            ;
+
+contract = { contract_annotation }
+         , ( | "final" | "opened" )
+         , "contract"
+         , identifier
+         , ( | implements_decl | restricts_decl )
+         , "{"
+         , { contract_statement }
+         , "}"
+         ;
+
+contract_annotation = runs_annotation
+                    | { derive_annotation }
+                    ;
+
+runs_annotation = annotation_symbol
+                , "runs"
+                , ( "AluVM" | "WASM" | "Simplicity" )
+                ;
+
+derive_annotation = annotation_symbol
+                  , "derive"
+                  , ( "assignmentSeparation" | "blankTransitions" )
+                  ;
+
+implements_decl = "implements"
+                , identifier
+                , { | (",", identifier) }
+                ;
+
+restricts_decl = "restricts"
+               , identifier
+               ;
+
+contract_statement = field_statement
+                   | assigns_statement
+                   | fn_statement
+                   | validate_statement
+                   | transition_statemebt
+                   ;
+
+annotation_symbol = "@"
