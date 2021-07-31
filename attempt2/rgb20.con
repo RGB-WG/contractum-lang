@@ -1,0 +1,90 @@
+schema RGB20Simple
+    field Ticker string(3..=8)
+    field Name string(8..=32)
+    field RicardianContract string(1..)
+    field DecFractions U8(0..=8)
+    field Issued U64
+    amount Assets
+    right Renomination
+
+    genesis :: issued Assets*, Renomination?, Ticker, Name, Contract?, totalIssued Issued
+        assert sum! *issued == totalIssued
+
+    transition transfer :: spent Assets+ -> sent Assets+
+        assert sum! #spent == sum #sent
+
+    transition renominate :: Renomination -> Renomination?, Ticker?, Name?, RicardianContract?
+        assert ticker? or name? or ricardianContract?
+
+    method totalIssued :: () -> amount U64
+        @genesis.totalIssued
+
+
+schema RGB20Inflatible extends RGB20Simple
+    amount Inflation
+
+    genesis :: issued Assets*, allowedInflation Inflation*,
+               Ticker, Name, Contract?, totalIssued Issued
+        @super
+        totalIssued +! sum! *allowedInflation
+
+    transition issue :: used Inflation+ -> future Inflation*, issued Assets+, totalIssued Issued
+        assert sum! #used == sum #future + sum #issued
+        assert sum! *issued == totalIssued
+
+    method totalIssued :: () -> U64
+        mut node := @genesis
+        mut acc := 0 U64
+        do
+            acc += sum! node.*issued
+        forEach node in node~directDescendants having .type == issue
+        return acc
+
+    method knownIssuance :: () -> U64
+        mut node := @genesis
+        mut acc := 0 U64
+        do
+            acc += sum node.*issued ?? 0
+        forEach node in node~directDescendants having .type == issue
+        return acc
+
+
+schema RGB20 extends RGB20Inflatible
+    field Reissued U64
+    field Burned U64
+    right ReissueEpoch
+    right Reissue
+
+    genesis :: issued Assets*, allowedInflation Inflation*,
+               epochCtl ReissueEpoch?, nomCtl Renomination,
+               Ticker, Name, Contract?, totalIssued Issued
+        @super
+
+    transition newEpoch :: ReissueEpoch -> ReissueEpoch?, Reissue
+
+    transition replace :: Reissue -> Reissue?, replaced Assets+, totalReissued Reissued
+        assert sum! *replaced == totalReissued
+        assert sum totalReissued + @contract.epochSupply <= @super.totalIssued
+
+    transition burn :: Reissue -> Reissue?, totalBurned Burned
+        assert sum! totalBurned + @contract.epochSupply <= @super.totalIssued
+
+    method epochSupply :: Node -> U64
+        mut acc := 0 U64
+        do
+            acc += node.totalReissued ?? node.totalBurned
+        forEach node in node~directAscendants having .type in [replace, burn]
+        return acc
+
+contract USDTN implements RGB20 on Bitcoin-mainet
+    Ticker := "USDTN"
+    Name := "USDT Notes"
+    DecFractions := 8
+
+    Assets := {
+        0x82b5ab7eb1a7692213f93d57c542c1d04d3a3c8817cdca55e37bb362c7470bd1:0 => 1_000_000
+    }
+
+    Inflation := {
+        0xa4a7f0dafa1e98b6ede41d06f808d87c5d66a4b272be8b31b5af9af76375f12f:1 => 10_000_000_000
+    }

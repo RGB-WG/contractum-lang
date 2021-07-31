@@ -1,0 +1,102 @@
+file = { schema | contract | library }
+
+schema = { schema_decl ~ (field_decl | asgn_decl | node | method)+ }
+schema_decl = {"schema" ~ ident ~ ("extends" ~ ident)?}
+
+field_decl = {"field" ~ ident ~ (builtin_type ~ value_range?)?}
+builtin_type = {"string" | "U8" | "U16" | "U32" | "U64" | "U128" | "U256" | "U512"}
+value_range = {"(" ~ lit_num? ~ (range_inclusive | range_exclusive) ~ lit_num? ~ ")"}
+range_inclusive = {"..="}
+range_exclusive = {"..<"}
+
+asgn_decl = {asgn_amount | asgn_right | asgn_state}
+asgn_amount = {"amount" ~ ident}
+asgn_right = {"right" ~ ident}
+asgn_state = {"state" ~ ident ~ builtin_type}
+
+node = {genesis ~ transition ~ extension}
+genesis = {genesis_decl ~ node_body}
+transition = {transition_decl ~ node_body}
+extension = {extension_decl ~ node_body}
+genesis_decl = {"genesis" ~ "::" ~ args}
+transition_decl = {"transition" ~ ident ~ "::" ~ args ~ "->" ~ args}
+extension_decl = {"extension" ~ ident ~ "::" ~ args ~ "->" ~ args}
+args = {(arg ~ ",")* ~ arg}
+arg = {ident? ~ arg_type}
+arg_type = ${ident ~ (maybe | any | many)?}
+maybe = {"?"}
+any = {"*"}
+many = {"+"}
+
+method = {method_decl ~ node_body}
+method_decl = {"method" ~ ident ~ "::" ~ args ~ "->" ~ args}
+
+node_body = {stmt_var | stmt_assert | stmt_branch | stmt_flow | stmt_assign}
+stmt_var = {var_type ~ ident ~ ":=" ~ builtin_type}
+stmt_assert = {"assert" ~ expr_bool}
+stmt_branch = {loop_do_while | loop_do_for_each | for_each | loop_while | loop_do}
+stmt_flow = {ret | "continue" | "break"}
+stmt_assign = {lhs ~ assign_op ~ rhs}
+
+assign_op = {":=" | "+=" | "*=" | "-=" | "/=" | "%=" | "|=" | "&=" | "^=" | "<<=" | ">>="}
+lhs = {expr_ident | expr_chain}
+rhs = {expr_val}
+
+ret = {"return" ~ expr_bool}
+var_type = {"let" | "mut"}
+loop_do_while = {"do" ~ node_body ~ "while" ~ expr_bool}
+loop_while = {"while" ~ node_body ~ "repeat"}
+loop_do = {"do" ~ node_body ~ "repeat"}
+loop_do_for_each = {"do" ~ node_body ~ "forEach" ~ ident ~ "in" ~ query}
+for_each = {"forEach" ~ query ~ node_body ~ "repeat"}
+
+query = {select ~ ("having" ~ expr_bool)?}
+select = ${ident ~ "~" ~ axis}
+axis = {"ascendants" | "directAscendants" | "children" | "parents" | "descendants" | "directDiscendants"}
+
+expr_bool = {expr_val ~ operator_cmp ~ expr_val}
+expr_val = {reduce | literal | expr_ident | expr_chain | optional_chain | operation+}
+expr_ident = {ident ~ "?"?}
+expr_chain = {expr_ident ~ ("." ~ expr_ident)*}
+optional_chain = {expr_val ~ ("." ~ expr_val)*}
+
+operation = {operation_unary | operation_binary | operation_tertiary | expr_bool}
+operation_unary = {operator_unary ~ expr_val}
+operation_binary = {expr_val ~ operator_binary ~ expr_val}
+operation_tertiary = {expr_val ~ "?" ~ expr_val ~ ":" ~ expr_val}
+operator_cmp = {"==" | "<=" | "<" | ">=" | ">" | "!=" | ">|=" | "|<="}
+operator_unary = {"-" | "^"}
+operator_binary = {operator_arith | operator_bin | operator_bool | operator_str}
+operator_arith = {"+" | "-" | "*" | "/" | "%" | "**"}
+operator_bin = {"|" | "&" | "^" | ">>" | "<<" | ">|" | "|<"}
+operator_bool = {"\\/" | "/\\" | "\\"}
+operator_str = {"$"}
+
+reduce = {reduce_op ~ expr_val}
+reduce_op = ${reduce_operation ~ reduce_modifier?}
+reduce_operation = {"sum" | "average" | "moda" | "count" | "min" | "max" | "first" | "last"}
+reduce_modifier = {"!"}
+
+lit_significand_int = @{ ASCII_DIGIT+ }
+lit_significand_res = @{ ASCII_DIGIT+ }
+lit_exponential = @{ ASCII_DIGIT+ }
+lit_float = ${ lit_significand_int ~ "." ~ lit_significand_res ~ (^"e" ~ lit_exponential)? }
+lit_dec = @{ ASCII_DIGIT+ }
+lit_hex = @{ ^"0x" ~ ASCII_HEX_DIGIT+ }
+lit_oct = @{ ^"0o" ~ ASCII_OCT_DIGIT+ }
+lit_bin = @{ ^"0b" ~ ("1" | "0")+ }
+lit_str = @{ "\"" ~ (!(NEWLINE | "\"") ~ ANY)* ~ "\"" }
+lit_chr = @{ "\'" ~ (ANY | char_special) ~ "\'" }
+lit_num = _{ lit_dec | lit_hex | lit_oct | lit_bin }
+literal = { lit_float | lit_hex | lit_oct | lit_bin | lit_dec | lit_str | lit_chr }
+
+char_unicode = @{ "\\u{" ~ ASCII_HEX_DIGIT{1, 6} ~ "}"  }
+char_hex = @{ "\\x" ~ ('0'..'7')? ~ ASCII_HEX_DIGIT }
+char_lf = @{ "\\n" }
+char_cr = @{ "\\r" }
+char_ht = @{ "\\t" }
+char_null = @{ "\\0" }
+char_bs = @{ "\\\\" }
+char_special = _{ char_lf | char_cr | char_ht | char_bs | char_null | char_unicode | char_hex }
+
+ident = @{ ASCII_ALPHA ~ ASCII_ALPHANUMERIC* }

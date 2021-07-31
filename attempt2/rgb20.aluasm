@@ -1,0 +1,42 @@
+
+.const
+                        $f_reissued     5
+                        $f_burned       6
+                        $t_reissue      105
+                        $t_burn         106
+
+;; Routine represents compillation of the following Contractum method:
+;; ```
+;; method epochSupply :: Node -> amount U64
+;;     mut acc := 0 U64
+;;     do
+;;         acc += node.totalReissued ?? node.totalBurned
+;;     forEach node in node~directAscendants having .type in [replace, burn]
+;;     acc
+;; ```
+
+.routine epochSupply
+        .arg    $node = r256[1]
+        .ret    $acc = a64[1]
+
+                        mov     $acc, 0
+                        ref     $node                           ; Sets node as a base node for future queries
+                        put     $t_reissue, a16[10]
+                        put     $t_burn, a16[11]
+
+do:                     ldf     $node, $f_reissue, a64[2]       ; Loads field value into register
+                        jif     addAssign
+                        ldf     $node, $f_burned, a64[2]
+                        ifail
+addAssign:              add     $acc, a64[2]                    ; we have accounted for the node supply increase
+
+forEach:                next.da $node                           ; loading next direct ancestor node into register
+                        jif     having
+                        ret
+
+having:                 ldt     $node, a16[1]                   ; loads node type to register
+                        eq      a16[1], a16[10]
+                        jif     do
+                        eq      a16[1], a16[11]
+                        jif     do
+                        jmp     forEach
