@@ -17,7 +17,7 @@ schema RGB20Simple
         assert ticker? or name? or ricardianContract?
 
     method totalIssued :: () -> amount U64
-        @genesis.totalIssued
+        @genesis.issued
 
 
 schema RGB20Inflatible extends RGB20Simple
@@ -30,7 +30,7 @@ schema RGB20Inflatible extends RGB20Simple
 
     transition issue :: used Inflation+ -> future Inflation*, issued Assets+, totalIssued Issued
         assert sum! #used == sum #future + sum #issued
-        assert sum! *issued == totalIssued
+        assert sum! *issued == @contract.totalIssued
 
     method totalIssued :: () -> U64
         mut node := @genesis
@@ -76,7 +76,8 @@ schema RGB20 extends RGB20Inflatible
         forEach node in node~directAscendants having .type in [replace, burn]
         return acc
 
-contract USDTN implements RGB20 on Bitcoin-mainet
+
+contract USDTN implements RGB20 on Bitcoin.Mainnet
     Ticker := "USDTN"
     Name := "USDT Notes"
     DecFractions := 8

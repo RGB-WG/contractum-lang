@@ -1,4 +1,4 @@
-file = { schema | contract | library }
+file = { SOI ~ (schema | contract | library)* ~ EOI }
 
 schema = { schema_decl ~ (field_decl | asgn_decl | node | method)+ }
 schema_decl = {"schema" ~ ident ~ ("extends" ~ ident)?}

@@ -1,3 +1,8 @@
+.isa
+        ALU
+        RGB
+        BPDIGEST
+        SECP256
 
 .const
                         $f_reissued     5
