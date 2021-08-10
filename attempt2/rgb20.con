@@ -1,38 +1,68 @@
-schema RGB20Simple
-    field Ticker string(3..=8)
-    field Name string(8..=32)
-    field RicardianContract string(1..)
-    field DecFractions U8(0..=8)
-    field Issued U64
-    amount Assets
+library FungibleAssets
+    data AssetAmount :: U64
+
+    abstract isCoin :: () -> Bool
+
+    abstract totalIssued :: () -> AssetAmount?
+    abstract knownIssuance :: () -> AssetAmount
+
+    method isShitcoin :: () -> Bool
+        return isCoin
+
+    method isTrustless :: () -> Bool
+        return false
+
+
+schema RGB20Simple using FungibleAssets
+    field Ticker :: UTF8^3..8
+    field Name :: UTF8^8..32
+    field ContractText :: UTF8*
+    field DecFractions :: U8 <- precision U8
+        -- here we must validate the value range,
+        -- so we are taking U8 value with `<-`
+        -- and making sure it fits into our requirements
+        assert precision in 0..=18
+    field IssuedAmount :: AssetAmount
+
+    -- if this was NFT, we can add something like
+    -- container Painting :: image/png
+
+    homomorph AssignedAmount AssetAmount
     right Renomination
+    -- hashed accumulating Engraving -- used in NFTs
 
-    genesis :: issued Assets*, Renomination?, Ticker, Name, Contract?, totalIssued Issued
-        assert sum! *issued == totalIssued
+    genesis :: Ticker, Name, ContractText?, IssuedAmount, allocation AssignedAmount*, Renomination?
+        assert sum! *allocation == issuedAmount
 
-    transition transfer :: spent Assets+ -> sent Assets+
+    transition transfer :: spent AssignedAmount+ -> sent AssignedAmount+
         assert sum! #spent == sum #sent
 
-    transition renominate :: Renomination -> Renomination?, Ticker?, Name?, RicardianContract?
-        assert ticker? or name? or ricardianContract?
+    transition renominate :: Renomination -> Renomination?, Ticker?, Name?, ContractText?
+        assert ticker? or name? or contractText?
 
-    method totalIssued :: () -> amount U64
-        @genesis.issued
+    method totalIssued :: () -> AssetAmount
+        return @self.issuedAmount
+
+    method knownIssuance :: () -> AssetAmount
+        return @self.totalIssued
 
 
 schema RGB20Inflatible extends RGB20Simple
-    amount Inflation
+    field MaxCap :: AssetAmount
+    homomorph AllowedInflation :: AssetAmount
 
-    genesis :: issued Assets*, allowedInflation Inflation*,
-               Ticker, Name, Contract?, totalIssued Issued
-        @super
-        totalIssued +! sum! *allowedInflation
+    genesis :: MaxCap, AllowedInflation+, ..@super
+        assert @super
+        assert maxCap == sum! *allowedInflation
+        @super.allocation +! sum! *allowedInflation
 
-    transition issue :: used Inflation+ -> future Inflation*, issued Assets+, totalIssued Issued
-        assert sum! #used == sum #future + sum #issued
-        assert sum! *issued == @contract.totalIssued
+    transition issue :: usedInflation AllowedInflation+
+                     -> futureInflation AllowedInflation*, issuedAssets AssignedAmount+, IssuedAmount
+        assert sum! #usedInflation == sum #futureInflation + sum #issuedAssets
+        assert sum! issuedAmount == sum! *issuedAssets
+        assert sum! @self.totalIssued + issuedAmount <= @genesis.maxCap
 
-    method totalIssued :: () -> U64
+    method totalIssued :: () -> AssetAmount
         mut node := @genesis
         mut acc := 0 U64
         do
@@ -40,7 +70,7 @@ schema RGB20Inflatible extends RGB20Simple
         forEach node in node~directDescendants having .type == issue
         return acc
 
-    method knownIssuance :: () -> U64
+    method knownIssuance :: () -> AssetAmount
         mut node := @genesis
         mut acc := 0 U64
         do
@@ -50,19 +80,18 @@ schema RGB20Inflatible extends RGB20Simple
 
 
 schema RGB20 extends RGB20Inflatible
-    field Reissued U64
-    field Burned U64
+    field ReissuedAmount :: AssetAmount
+    field BurnedAmount :: AssetAmount
+
     right ReissueEpoch
     right Reissue
 
-    genesis :: issued Assets*, allowedInflation Inflation*,
-               epochCtl ReissueEpoch?, nomCtl Renomination,
-               Ticker, Name, Contract?, totalIssued Issued
+    genesis :: ReissueEpoch, ..@super
         @super
 
-    transition newEpoch :: ReissueEpoch -> ReissueEpoch?, Reissue
+    transition newEpoch :: ReissueEpoch -> ReissueEpoch?
 
-    transition replace :: Reissue -> Reissue?, replaced Assets+, totalReissued Reissued
+    transition replace :: Reissue -> Reissue?, replaced AssetAmount+, totalReissued ReissuedAmount
         assert sum! *replaced == totalReissued
         assert sum totalReissued + @contract.epochSupply <= @super.totalIssued
 
@@ -77,15 +106,18 @@ schema RGB20 extends RGB20Inflatible
         return acc
 
 
-contract USDTN implements RGB20 on Bitcoin.Mainnet
-    Ticker := "USDTN"
-    Name := "USDT Notes"
-    DecFractions := 8
+contract USDN implements RGB20Inflatible on Bitcoin.Mainnet
+    field Ticker := "USDN"
+    field Name := "USD Notes"
+    field DecFractions := 8
 
-    Assets := {
+    homomorph AssignedAmount := {
         0x82b5ab7eb1a7692213f93d57c542c1d04d3a3c8817cdca55e37bb362c7470bd1:0 => 1_000_000
     }
 
-    Inflation := {
+    homomorph AllowedInflation := {
         0xa4a7f0dafa1e98b6ede41d06f808d87c5d66a4b272be8b31b5af9af76375f12f:1 => 10_000_000_000
     }
+
+    method isCoin :: () -> Bool
+        return true
