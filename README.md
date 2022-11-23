@@ -47,23 +47,6 @@ schema DecentralizedIdentity
    op Transfer :: spent {IOYTokens} -> received [IOYTokens]
       assert sum spent == sum received
    
-contract meSatoshiNakamoto implements DecentralizedIdentity
-   set IOYTicker := "SATN"
-   set IOYName := "Satoshi Promises"
-   -- this defines a genesis state and assigns it to a single-use-seal
-   assign orig Identity := (0xfac503c4641c3deda72a2d00bc9d6ff1094b15276c386efea403746a91436772, 1) 
-                        -> PgpKey(0, 0x028730eeeec41802621d177507b086f390ae600ba3ca5e428b13913af4c2cd25b3)
-
-transition iLostMyKey executes Revocation
-   via meSatoshiNakamoto.orig -- specifies the single-use-seal we close to match requirements
-                              -- on the valid operation execution conditions
-   assign upd Identity := (~, 2) -- here we use txid of the bitcoin transaction which will be
-                                 -- created to hold the commitment to this state transition, 
-                                 -- called "single-use-seal witness". Since we can not know the
-                                 -- txid upfront we use ~ to indicate the witness transaction id
-                       -> PgpKey(0, 0x0219db0a4e0eb8cb833608c08d76b9b279ec44a851ab82cc6fd68a9b32624bfa8b)
-   -- the above defines new state and assigns it to a single-use-seal
-   
 interface FungibleToken:
    global Ticker -> String -- this is similar to schema definition; in fact
                            -- it is a requirement that the schema must provide
@@ -76,6 +59,10 @@ interface FungibleToken:
 
    op Issue :: Inflation -> [Asset]?, Inflation? -- and operations
    op Transfer :: {Asset} -> [Asset]
+
+interface PgpIdentity
+  owned Identity :: PgpKey
+  exec Revocation :: old Identity -> new Identity
 
 -- Specific schema state may use different naming, for instance because a schema
 -- can define multiple assets with different names; in that case we will have
@@ -92,13 +79,26 @@ implement FungibleToken for DecentralizedIdentity
                -- matches the name used in the schema. In such cases we can also
                -- skip the declaration at whole
 
-interface PgpIdentity
-  owned Identity :: PgpKey
-  exec Revocation :: old Identity -> new Identity
-
 implement PgpIdentity for DecentralizedIdentity
   -- we do not need to put anything here since schema state and operation names
   -- matches interface requirements and the compiler is able to guess the bindings
+  
+contract meSatoshiNakamoto implements DecentralizedIdentity
+   set IOYTicker := "SATN"
+   set IOYName := "Satoshi Promises"
+   -- this defines a genesis state and assigns it to a single-use-seal
+   assign orig Identity := (0xfac503c4641c3deda72a2d00bc9d6ff1094b15276c386efea403746a91436772, 1) 
+                        -> PgpKey(0, 0x028730eeeec41802621d177507b086f390ae600ba3ca5e428b13913af4c2cd25b3)
+
+transition iLostMyKey executes Revocation
+   via meSatoshiNakamoto.orig -- specifies the single-use-seal we close to match requirements
+                              -- on the valid operation execution conditions
+   assign upd Identity := (~, 2) -- here we use txid of the bitcoin transaction which will be
+                                 -- created to hold the commitment to this state transition, 
+                                 -- called "single-use-seal witness". Since we can not know the
+                                 -- txid upfront we use ~ to indicate the witness transaction id
+                       -> PgpKey(0, 0x0219db0a4e0eb8cb833608c08d76b9b279ec44a851ab82cc6fd68a9b32624bfa8b)
+   -- the above defines new state and assigns it to a single-use-seal
 ```
 
 [AluVM]: https://www.aluvm.org
