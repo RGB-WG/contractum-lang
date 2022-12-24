@@ -4,7 +4,15 @@ Repository is a prototyping for possible RGB contract language, which should
 compile to RGB Schema data with additional validation code running on virtual
 machine(s) supported by RGB (currently this will be AluVM)
 
-For a sample code pls check [RGB20 fungible token](attempt3/rgb20.con)
+Contractum differs from other smart contract programming languages in a fact
+that as functional as Haskel and nearly as close to the bare metal as Rust at
+the same time, filling in the space which was not accessible for the smart
+contracts before:
+
+![contractum-box](https://user-images.githubusercontent.com/372034/209443980-def261d8-44d6-41af-8472-a698615a5d91.png)
+
+For a sample
+code pls check [RGB20 fungible token](attempt3/rgb20.con)
 contract, which should compile into RGB20 Schema. You may also see how code 
 compilation into [AluVM] assembly [may look like](attempt3/rgb20.aluasm)
 and check [PEG] [grammar of contractum language](attempt3/grammar.pest).
