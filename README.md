@@ -5,11 +5,11 @@ compile to RGB Schema data with additional validation code running on virtual
 machine(s) supported by RGB (currently this will be AluVM)
 
 Contractum differs from other smart contract programming languages in a fact
-that as functional as Haskel and nearly as close to the bare metal as Rust at
+that as functional as Haskell and nearly as close to the bare metal as Rust at
 the same time, filling in the space which was not accessible for the smart
 contracts before:
 
-![contractum-box](https://user-images.githubusercontent.com/372034/209443980-def261d8-44d6-41af-8472-a698615a5d91.png)
+![contractum-box-black](https://user-images.githubusercontent.com/372034/209446013-24638564-08ec-4eff-afbb-302f83e5b0df.png)
 
 For a sample
 code pls check [RGB20 fungible token](attempt3/rgb20.con)
